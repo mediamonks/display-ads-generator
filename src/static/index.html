@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Display.Monks Preview and Deliverables Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;900&display=swap" rel="stylesheet">
+    <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+
+    <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            background-color: #000;
+            color: #fff
+        }
+
+        .main {
+            position: absolute;
+            width: 800px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            background-color: #000;
+            height: 100%
+        }
+
+        .title {
+            font-family: 'Roboto', sans-serif;
+            font-size: 40px;
+            font-weight: 900;
+            padding-top: 50px;
+
+        }
+
+        .title sup {
+            font-size: 15px;
+            color: blue;
+            font-weight: 400;
+        }
+
+        .helpTxt {
+            padding-top: 20px;
+        }
+
+        .form {
+            padding-top: 20px;
+        }
+
+        #messages {
+            list-style-type: none;
+            font-size: 10px;
+            text-align: left;
+            margin: 0;
+            padding: 0;
+            padding-top: 10px;
+            /*display: none;*/
+        }
+
+        #messages a {
+            color: #fff;
+        }
+
+        #messages > li {
+            padding: 0.5rem 1rem;
+        }
+
+        #messages > li:nth-child(odd) {
+            background: #191919;
+        }
+
+        .footer {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            font-size: 8px;
+            text-align: right;
+        }
+
+        td, tr, table {
+            text-align: center;
+        }
+
+        .formTable {
+            width: 50%;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main">
+        <div class="title"> display ads generator <sup class="beta">beta</sup> </div>
+        <div class="helpTxt">
+            Select a template and feed, and then hit 'generate preview & zips'
+        </div>
+
+        <form class='form' id="form" action="">
+            <table class="formTable">
+                <tr>
+                    <td>
+                        Template:
+                    </td>
+                    <td>
+                        <input id="input_template" placeholder="link to repository">
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>
+                        Repo auth (optional):
+                    </td>
+                    <td>
+                        <input id="input_username" placeholder="username"><br>
+                        <input id="input_password" type="password" placeholder="password">
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>
+                        Branch (optional):
+                    </td>
+                    <td>
+                        <input id="input_branch" type="url" placeholder="main, master, develop...">
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>
+                        Feed URL (optional):
+                    </td>
+                    <td>
+                        <input id="input_feed" type="url" placeholder="google sheets url">
+                    </td>
+
+                </tr>
+
+                <tr>
+                    <td colspan="2">
+                        advanced options
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2">
+                        <input type="checkbox" id="optimize_images" name="optimize_images" value="optimize_images" checked>
+                        <label for="optimize_images">optimize_images</label>
+                        <input type="checkbox" id="optimize_fonts" name="optimize_fonts" value="optimize_fonts" checked>
+                        <label for="optimize_fonts">optimize_fonts</label>
+                        <br>
+                        <input type="checkbox" id="minify_html" name="minify_html" value="minify_html" checked>
+                        <label for="minify_html">minify_html</label>
+                        <input type="checkbox" id="minify_css" name="minify_css" value="minify_css" checked>
+                        <label for="minify_css">minify_css</label>
+                        <input type="checkbox" id="minify_javascript" name="minify_javascript" value="minify_javascript" checked>
+                        <label for="minify_javascript">minify_javascript</label>
+                        <br>
+                        <input type="checkbox" id="preserve_filenames" name="preserve_filenames" value="preserve filenames" checked>
+                        <label for="preserve_filenames">preserve_filenames</label>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2">
+                        <button class="optimize">generate preview & zips</button>
+                    </td>
+                </tr>
+            </table>
+        </form>
+        <ul id="messages">
+
+        </ul>
+    </div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    var socket = io();
+    var messages = document.getElementById('messages');
+
+    document.getElementById('form').addEventListener('submit', function(e) {
+
+
+        socket.emit('generateAds', {
+            input_template: document.getElementById('input_template').value,
+
+            input_username: document.getElementById('input_username').value,
+            input_password: document.getElementById('input_password').value,
+
+            input_branch: document.getElementById('input_branch').value,
+            input_feed: document.getElementById('input_feed').value,
+
+            preserve_filenames: document.getElementById('preserve_filenames').checked,
+
+            optimizations: {
+                html: document.getElementById('minify_html').checked,
+                css: document.getElementById('minify_css').checked,
+                js: document.getElementById('minify_javascript').checked,
+                image: document.getElementById('optimize_images').checked,
+                fonts: document.getElementById('optimize_fonts').checked
+            },
+
+
+
+        });
+
+        // document.querySelector('.form').remove();
+        // document.querySelector('.helpTxt').remove();
+        // document.querySelector('#messages').style.display='block';
+
+        e.preventDefault();
+        // if (input.value) {
+        //     socket.emit('presentationId', input.value);
+        //     input.value = '';
+        // }
+    });
+
+
+
+    socket.on('update message', function(msg) {
+        var item = document.createElement('li');
+        item.innerHTML = msg.data;
+        messages.appendChild(item);
+        //messages.insertBefore(item, messages.firstChild);
+
+        window.scrollTo(0, document.body.scrollHeight);
+        console.log(msg.data)
+    });
+</script>
+</body>
+</html>

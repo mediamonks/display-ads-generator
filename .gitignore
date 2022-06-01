@@ -1,0 +1,5 @@
+.idea
+.cache
+.uploadrc
+
+node_modules
