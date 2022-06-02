@@ -81,57 +81,77 @@ const buildAllTheFiles = async (socket, options) => {
     }
 
     console.log('compiling...', socket)
-    await displayDevServer({
-        mode: 'production',
-        glob: `./${sourceDir}/${repoName}/**/.richmediarc*`,
-        choices: {
-            location: 'all',
-            emptyBuildDir: true
-        },
-        buildTarget,
-        configOverride
-    });
+
+    try {
+        await displayDevServer({
+            mode: 'production',
+            glob: `./${sourceDir}/${repoName}/**/.richmediarc*`,
+            choices: {
+                location: 'all',
+                emptyBuildDir: true
+            },
+            buildTarget,
+            configOverride
+        });
+
+    } catch (e) {
+        console.log('failed build', socket)
+        return;
+    }
+
 
     console.log('creating zip files...', socket);
-    const zip = new JSZIP();
-    const zipFilesArray = glob.sync(`${buildTarget}/*.zip`, {});
+    try {
+        const zip = new JSZIP();
+        const zipFilesArray = glob.sync(`${buildTarget}/*.zip`, {});
 
-    zipFilesArray.forEach(zipFile => {
-        const zipFileData = fs.readFileSync(zipFile);
-        const zipFileName = path.basename(zipFile);
-        zip.file(zipFileName, zipFileData);
-    })
+        zipFilesArray.forEach(zipFile => {
+            const zipFileData = fs.readFileSync(zipFile);
+            const zipFileName = path.basename(zipFile);
+            zip.file(zipFileName, zipFileData);
+        })
 
-    const zipData = await zip.generateAsync({type:"nodebuffer"})
-    await fs.writeFileSync(`${buildTarget}/${repoName}.zip`, zipData);
+        const zipData = await zip.generateAsync({type:"nodebuffer"})
+        await fs.writeFileSync(`${buildTarget}/${repoName}.zip`, zipData);
 
+    } catch (e) {
+        console.log('failed creating zips', socket)
+    }
+
+    return;
     console.log('uploading files to preview server...', socket);
+    try {
 
-    const remotePath = uuidv4();
-    await new Uploader({
-        config: {
-            "accessKeyId": process.env.preview_accessKeyId,
-            "secretAccessKey": process.env.preview_accessKeySecret
-        },
-        bucket: process.env.Preview_s3bucket,
-        localPath: buildTarget,
-        remotePath,
-        glob: '*.*', // default is '*.*'
-        concurrency: '200', // default is 100
-        dryRun: false, // default is false
-        // cacheControl: 'max-age=300', // can be a string, for all uploade resources
-        cacheControl: {
-            // or an object with globs as keys to match the input path
-            // '**/settings.json': 'max-age=60', // 1 mins for settings, specific matches should go first
-            // '**/*.json': 'max-age=300', // 5 mins for other jsons
-            '**/*.*': 'max-age=60', // 1 hour for everthing else
-        },
-    }).upload();
+        const remotePath = uuidv4();
+        await new Uploader({
+            config: {
+                "accessKeyId": process.env.preview_accessKeyId,
+                "secretAccessKey": process.env.preview_accessKeySecret
+            },
+            bucket: process.env.Preview_s3bucket,
+            localPath: buildTarget,
+            remotePath,
+            glob: '*.*', // default is '*.*'
+            concurrency: '200', // default is 100
+            dryRun: false, // default is false
+            // cacheControl: 'max-age=300', // can be a string, for all uploade resources
+            cacheControl: {
+                // or an object with globs as keys to match the input path
+                // '**/settings.json': 'max-age=60', // 1 mins for settings, specific matches should go first
+                // '**/*.json': 'max-age=300', // 5 mins for other jsons
+                '**/*.*': 'max-age=60', // 1 hour for everthing else
+            },
+        }).upload();
 
-    const previewUrl = `http://${process.env.Preview_s3bucket}.s3.amazonaws.com/${remotePath}`;
+        const previewUrl = `http://${process.env.Preview_s3bucket}.s3.amazonaws.com/${remotePath}`;
 
-    console.log(`preview url here:<br>${toHref(`${previewUrl}/index.html`)}`, socket)
-    console.log(`download deliverables here:<br>${toHref(previewUrl+'/'+repoName+'.zip')}`, socket)
+        console.log(`preview url here:<br>${toHref(`${previewUrl}/index.html`)}`, socket)
+        console.log(`download deliverables here:<br>${toHref(previewUrl+'/'+repoName+'.zip')}`, socket)
+
+    } catch (e) {
+        console.log('failed upload', socket)
+    }
+
 }
 
 app.get('/', (req, res) => {
