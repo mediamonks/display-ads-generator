@@ -88,6 +88,15 @@
             width: 50%;
             margin: 0 auto;
         }
+
+        .configList {
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .configList option {
+
+        }
     </style>
 </head>
 <body>
@@ -140,10 +149,26 @@
 
                 <tr>
                     <td colspan="2">
-                        advanced options
+                        <button type="button" class="getTemplateBtn">grab template</button>
                     </td>
                 </tr>
 
+
+
+                <tr>
+                    <td colspan="2">
+                        <label for="config_list">choose which ads to generate:</label>
+                        <br>
+
+                        <select class="configList" name="config_list" id="config_list" multiple></select>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2">
+                        advanced options
+                    </td>
+                </tr>
                 <tr>
                     <td colspan="2">
                         <input type="checkbox" id="optimize_images" name="optimize_images" value="optimize_images" checked>
@@ -158,14 +183,14 @@
                         <input type="checkbox" id="minify_javascript" name="minify_javascript" value="minify_javascript" checked>
                         <label for="minify_javascript">minify_javascript</label>
                         <br>
-                        <input type="checkbox" id="preserve_filenames" name="preserve_filenames" value="preserve filenames" checked>
+                        <input type="checkbox" id="preserve_filenames" name="preserve_filenames" value="preserve filenames">
                         <label for="preserve_filenames">preserve_filenames</label>
                     </td>
                 </tr>
 
                 <tr>
                     <td colspan="2">
-                        <button class="optimize">generate preview & zips</button>
+                        <button type="submit">generate preview & zips</button>
                     </td>
                 </tr>
             </table>
@@ -180,17 +205,43 @@
     var socket = io();
     var messages = document.getElementById('messages');
 
-    document.getElementById('form').addEventListener('submit', function(e) {
+    function getSelectValues(select) {
+        var result = [];
+        var options = select && select.options;
+        var opt;
 
+        for (var i=0, iLen=options.length; i<iLen; i++) {
+            opt = options[i];
 
-        socket.emit('generateAds', {
+            if (opt.selected) {
+                result.push(opt.value || opt.text);
+            }
+        }
+        return result;
+    }
+
+    document.querySelector('.getTemplateBtn').addEventListener('click', function(e) {
+        socket.emit('grabTemplate', {
             input_template: document.getElementById('input_template').value,
 
             input_username: document.getElementById('input_username').value,
             input_password: document.getElementById('input_password').value,
 
             input_branch: document.getElementById('input_branch').value,
+            input_feed: document.getElementById('input_feed').value
+        });
+    });
+
+    document.getElementById('form').addEventListener('submit', function(e) {
+        var selectEl = document.getElementById('config_list');
+
+        var selectedAdsArray = getSelectValues(selectEl);
+
+        console.log(selectedAdsArray)
+
+        socket.emit('generateAds', {
             input_feed: document.getElementById('input_feed').value,
+            selectedAds: selectedAdsArray,
 
             preserve_filenames: document.getElementById('preserve_filenames').checked,
 
@@ -201,20 +252,11 @@
                 image: document.getElementById('optimize_images').checked,
                 fonts: document.getElementById('optimize_fonts').checked
             },
-
-
-
         });
 
-        // document.querySelector('.form').remove();
-        // document.querySelector('.helpTxt').remove();
-        // document.querySelector('#messages').style.display='block';
 
         e.preventDefault();
-        // if (input.value) {
-        //     socket.emit('presentationId', input.value);
-        //     input.value = '';
-        // }
+
     });
 
 
@@ -228,6 +270,25 @@
         window.scrollTo(0, document.body.scrollHeight);
         console.log(msg.data)
     });
+
+    socket.on('list ads', function(msg) {
+        var select = document.getElementById('config_list');
+
+        while (select.options.length > 0) {
+            select.remove(0);
+        }
+
+        for (var i = 0; i < msg.data.length; i++){
+            var opt = document.createElement('option');
+            opt.value = msg.data[i].location;
+            opt.innerHTML = msg.data[i].baseName;
+            select.appendChild(opt);
+        }
+
+        var selectSize = msg.data.length < 20 ? msg.data.length : 20;
+        select.setAttribute("size", selectSize);
+    });
+
 </script>
 </body>
 </html>

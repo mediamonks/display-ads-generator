@@ -2,6 +2,10 @@ const JSZIP = require('jszip');
 const glob = require('glob');
 const displayDevServer = require('@mediamonks/display-dev-server');
 
+const findRichmediaRC = require('@mediamonks/display-dev-server/src/util/findRichmediaRC');
+const expandWithSpreadsheetData = require('@mediamonks/display-dev-server/src/util/expandWithSpreadsheetData');
+const parsePlaceholdersInObject = require('@mediamonks/display-dev-server/src/util/parsePlaceholdersInObject');
+
 const Uploader = require('s3-batch-upload').default;
 const { v4: uuidv4 } = require('uuid');
 
@@ -18,10 +22,21 @@ const log_stdout = process.stdout;
 const toHref = (url, label) => '<a target="_blank" href="'+url+'">' + (label || url) + '</a>';
 const port = process.env.PORT || 3000;
 
-console.log = function(d, socket) { //
+console.log = async (d, socket) => { //
     log_stdout.write(util.format(d) + '\n');
-    if (socket) socket.emit('update message', { data: d});
+    if (socket) {
+        await socket.emit('update message', { data: d});
+        await pause();
+    }
 };
+
+const pause = async (amount = 50) => {
+    return new Promise((resolve) => {
+        setTimeout(()=> {
+            resolve();
+        }, amount)
+    })
+}
 
 const getRepoNameFromUrl = (url) => {
     console.log(url);
@@ -30,46 +45,123 @@ const getRepoNameFromUrl = (url) => {
     return url.substr(firstIndex, lastIndex);
 }
 
-const buildAllTheFiles = async (socket, options) => {
-    const sourceDir = `.cache`;
-    const branchName = options.input_branch;
-    let repoUrl = options.input_template;
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/static/index.html');
+});
+
+io.on('connection', async (socket) => {
+    console.log('Client Connected')
+
+    socket.on('grabTemplate', async msg => {
+        await console.log(`getting template: ${msg.input_template}`, socket)
+
+        try {
+            await grabTemplate(msg, socket);
+
+        } catch (e) {
+            await console.log(`error: couldn't grab template`, socket)
+        }
+    });
+
+    socket.on('generateAds', async msg => {
+        await console.log(`starting build with template: ${msg.input_template}`, socket)
+
+        try {
+            const result = await generateAds(msg, socket);
+            await console.log(`build status:${result}`, socket)
+        } catch (e) {
+            await console.log(`error: couldn't generate ads`, socket)
+        }
+    });
+});
 
 
+http.listen(port, () => {
+    console.log(`Display Ads Generator - Server running at http://localhost:${port}/`);
+});
+
+const sourceDir = `.cache`;
+let branchName, repoUrl, repoName, buildTarget, configOverride;
+
+
+const grabTemplate = async (options, socket) => {
+    branchName = options.input_branch;
+    repoUrl = options.input_template;
+    repoName = getRepoNameFromUrl(repoUrl);
+
+    //in case of auth
     if (options.input_username !== '' && options.input_password !== '') {
         const splitRepoUrl = repoUrl.split('https://');
         repoUrl = `https://${options.input_username}:${options.input_password}@${splitRepoUrl[1]}`
     }
 
-    const repoName = getRepoNameFromUrl(repoUrl);
-
     console.log(options)
 
-    const buildTarget = `./${sourceDir}/${repoName}/build`;
-    console.log(`build folder set to ${buildTarget}...`, socket)
+    buildTarget = `./${sourceDir}/${repoName}/build`;
+    await console.log(`build folder set to ${buildTarget}...`, socket)
 
     if (!fs.existsSync(`./${sourceDir}`)) fs.mkdirSync(`./${sourceDir}`);
 
     if (!fs.existsSync(`./${sourceDir}/${repoName}`)) {
-        console.log(`directory doesnt exist. cloning into ./${sourceDir}/${repoName}...`, socket)
+        await console.log(`directory doesnt exist. cloning into ./${sourceDir}/${repoName}...`, socket)
         child_process.execSync(`cd ${sourceDir} && git clone ${repoUrl}`);
-
-        if (branchName !== '') {
-            console.log(`fetching branch ${branchName}...`, socket)
-            child_process.execSync(`cd ${sourceDir}/${repoName} && git checkout ${branchName}`);
-        }
-
     } else {
-        console.log(`directory ./${sourceDir}/${repoName} exists already. pulling latest...`, socket)
+        await console.log(`directory ./${sourceDir}/${repoName} exists already. pulling latest...`, socket)
         child_process.execSync(`cd ${sourceDir}/${repoName} && git pull`);
     }
 
-    console.log('installing dependencies...', socket)
-    child_process.execSync(`cd ${sourceDir}/${repoName} && npm install`);
+    if (branchName !== '') {
+        await console.log(`fetching branch ${branchName}...`, socket)
+        child_process.execSync(`cd ${sourceDir}/${repoName} && git checkout ${branchName}`);
+    }
 
-    console.log('configOverride time', socket)
 
-    const configOverride = {
+    let configs = await findRichmediaRC(`./${sourceDir}/${repoName}/**/.richmediarc*`, ['settings.entry.js', 'settings.entry.html']);
+    //console.log(configs)
+
+
+    configs.forEach(config => {
+
+        if(config.data.settings.contentSource) {
+            config.data.settings.contentSource = parsePlaceholdersInObject(config.data.settings.contentSource, config.data);
+        }
+
+        console.log(config.data.settings.contentSource)
+        if (options.input_feed !== '') {
+
+            console.log('Found a contentSource override!!')
+            config.data.settings.contentSource = {
+                url: options.input_feed
+            }
+        }
+    })
+
+
+    configs = await expandWithSpreadsheetData(configs, 'production');
+
+
+
+    let socketIoConfig = [];
+
+    configs.forEach(config => {
+        console.log(path.basename(config.location))
+        socketIoConfig.push({
+            location: config.location,
+            baseName: path.basename(config.location)
+        })
+    })
+
+    console.log(socketIoConfig);
+    await socket.emit('list ads', { data: socketIoConfig});
+}
+
+
+const generateAds = async (options, socket) => {
+    // await console.log('installing dependencies...', socket)
+    // child_process.execSync(`cd ${sourceDir}/${repoName} && npm install`);
+
+
+    configOverride = {
         settings: {
             optimizations: options.optimizations,
             useOriginalFileNames: options.preserve_filenames,
@@ -80,14 +172,17 @@ const buildAllTheFiles = async (socket, options) => {
         url: options.input_feed
     }
 
-    console.log('compiling...', socket)
+
+    console.log(configOverride)
+
+    await console.log('compiling...', socket)
 
     try {
         await displayDevServer({
             mode: 'production',
             glob: `./${sourceDir}/${repoName}/**/.richmediarc*`,
             choices: {
-                location: 'all',
+                location: options.selectedAds,
                 emptyBuildDir: true
             },
             buildTarget,
@@ -95,12 +190,13 @@ const buildAllTheFiles = async (socket, options) => {
         });
 
     } catch (e) {
-        console.log('failed build', socket)
+        console.log('error: failed build', socket)
         return;
     }
 
 
     console.log('creating zip files...', socket);
+
     try {
         const zip = new JSZIP();
         const zipFilesArray = glob.sync(`${buildTarget}/*.zip`, {});
@@ -115,10 +211,9 @@ const buildAllTheFiles = async (socket, options) => {
         await fs.writeFileSync(`${buildTarget}/${repoName}.zip`, zipData);
 
     } catch (e) {
-        console.log('failed creating zips', socket)
+        console.log('error: failed creating zips', socket)
     }
 
-    return;
     console.log('uploading files to preview server...', socket);
     try {
 
@@ -149,33 +244,9 @@ const buildAllTheFiles = async (socket, options) => {
         console.log(`download deliverables here:<br>${toHref(previewUrl+'/'+repoName+'.zip')}`, socket)
 
     } catch (e) {
-        console.log('failed upload', socket)
+        console.log('error: failed upload', socket)
     }
 
+    return "finalized"
 }
-
-app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/static/index.html');
-});
-
-io.on('connection', async (socket) => {
-    console.log('Client Connected')
-
-    socket.on('generateAds', async msg => {
-        console.log(`starting build with template: ${msg.input_template}`, socket)
-
-        try {
-            await buildAllTheFiles(socket, msg);
-
-        } catch (e) {  }
-    });
-});
-
-
-(async () => {
-    http.listen(port, () => {
-        console.log(`Deck Optimmizer - Server running at http://localhost:${port}/`);
-    });
-})();
-
 
