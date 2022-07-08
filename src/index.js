@@ -14,13 +14,28 @@ const fs = require('fs');
 const path = require('path');
 const util = require("util");
 
-const app = require('express')();
-const http = require('http').Server(app);
-const io = require('socket.io')(http);
+
+
+// const app = require('express')();
+// const http = require('http').Server(app);
+// const io = require('socket.io')(http);
+
+
+const express = require('express');
+const app = express();
+const http = require('http');
+const server = http.createServer(app);
+const { Server } = require("socket.io");
+const io = new Server(server);
+
+
+
 
 const log_stdout = process.stdout;
 const toHref = (url, label) => '<a target="_blank" href="'+url+'">' + (label || url) + '</a>';
 const port = process.env.PORT || 3000;
+
+
 
 console.log = async (d, socket) => { //
     log_stdout.write(util.format(d) + '\n');
@@ -45,7 +60,11 @@ const getRepoNameFromUrl = (url) => {
     return url.substr(firstIndex, lastIndex);
 }
 
+app.use('/js', express.static(path.join(__dirname, './static/js')));
+app.use('/css', express.static(path.join(__dirname, './static/css')));
+
 app.get('/', (req, res) => {
+    console.log('heya')
     res.sendFile(__dirname + '/static/index.html');
 });
 
@@ -70,13 +89,14 @@ io.on('connection', async (socket) => {
             const result = await generateAds(msg, socket);
             await console.log(`build status:${result}`, socket)
         } catch (e) {
+            console.log(e);
             await console.log(`error: couldn't generate ads`, socket)
         }
     });
 });
 
 
-http.listen(port, () => {
+server.listen(port, () => {
     console.log(`Display Ads Generator - Server running at http://localhost:${port}/`);
 });
 
@@ -140,7 +160,6 @@ const grabTemplate = async (options, socket) => {
     configs = await expandWithSpreadsheetData(configs, 'production');
 
 
-
     let socketIoConfig = [];
 
     configs.forEach(config => {
@@ -156,10 +175,9 @@ const grabTemplate = async (options, socket) => {
 }
 
 
-const generateAds = async (options, socket) => {
-    // await console.log('installing dependencies...', socket)
-    // child_process.execSync(`cd ${sourceDir}/${repoName} && npm install`);
 
+const generateAds = async (options, socket) => {
+    console.log(options.selectedAds);
 
     configOverride = {
         settings: {
@@ -171,18 +189,43 @@ const generateAds = async (options, socket) => {
     if (options.input_feed !== '') configOverride.settings.contentSource = {
         url: options.input_feed
     }
+    const adLocations = options.selectedAds.map(ad => ad.location)
+
 
 
     console.log(configOverride)
 
     await console.log('compiling...', socket)
 
+    const socketMsg = options.selectedAds.map(ad => {
+        return {
+            name: ad.name,
+            outputName: 'In Progress',
+            html: 'In Progress',
+            preview: 'In Progress',
+            zip: 'In Progress',
+            video: 'In Progress',
+            gif: 'In Progress',
+            jpg: 'In Progress'
+            // configPath: result.settings.location,
+            // builtFilesPath: result.webpack.output.path,
+            // builtHtmlPath: result.webpack.output.path + '/index.html',
+            // html: 'Done',
+            // builtZipPath: result.webpack.output.path + '.zip',
+            // zip: 'Done'
+        }
+    })
+
+    socket.emit('ads built', { data: socketMsg});
+
+
+    let buildResult;
     try {
-        await displayDevServer({
+        buildResult = await displayDevServer({
             mode: 'production',
             glob: `./${sourceDir}/${repoName}/**/.richmediarc*`,
             choices: {
-                location: options.selectedAds,
+                location: adLocations,
                 emptyBuildDir: true
             },
             buildTarget,
@@ -190,29 +233,61 @@ const generateAds = async (options, socket) => {
         });
 
     } catch (e) {
+        console.log(e);
         console.log('error: failed build', socket)
         return;
     }
 
+    // console.log(buildResult)
 
-    console.log('creating zip files...', socket);
+    // console.log(buildResult[0]);
+    // console.log(buildResult.length)
 
-    try {
-        const zip = new JSZIP();
-        const zipFilesArray = glob.sync(`${buildTarget}/*.zip`, {});
+    //
+    buildResult.forEach(result => {
+        //console.log("name: " + path.basename(result.settings.location));
+        //console.log("location of config: " + result.settings.location);
+        //console.log("abs path to built files: " + result.webpack.output.path);
+        //console.log("abs path to built html: " + result.webpack.output.path + '/index.html');
+        //console.log("abs path to zip: " + result.webpack.output.path + '.zip');
+        //console.log(fs.existsSync(path.resolve(result.webpack.output.path + '.zip')))
 
-        zipFilesArray.forEach(zipFile => {
-            const zipFileData = fs.readFileSync(zipFile);
-            const zipFileName = path.basename(zipFile);
-            zip.file(zipFileName, zipFileData);
-        })
+        const socketMsgEl = socketMsg.find(element => element.name === path.basename(result.settings.location));
+        //console.log(socketMsgEl);
 
-        const zipData = await zip.generateAsync({type:"nodebuffer"})
-        await fs.writeFileSync(`${buildTarget}/${repoName}.zip`, zipData);
+        socketMsgEl.outputName = path.basename(result.webpack.output.path);
+        socketMsgEl.html = 'Done';
+    })
 
-    } catch (e) {
-        console.log('error: failed creating zips', socket)
-    }
+
+    console.log(socketMsg)
+
+    socket.emit('ads built', { data: socketMsg});
+
+
+
+
+    // console.log('creating zip files...', socket);
+    //
+    // try {
+    //     const zip = new JSZIP();
+    //     const zipFilesArray = glob.sync(`${buildTarget}/*.zip`, {});
+    //
+    //     zipFilesArray.forEach(zipFile => {
+    //         const zipFileData = fs.readFileSync(zipFile);
+    //         const zipFileName = path.basename(zipFile);
+    //         zip.file(zipFileName, zipFileData);
+    //     })
+    //
+    //     const zipData = await zip.generateAsync({type:"nodebuffer"})
+    //     await fs.writeFileSync(`${buildTarget}/${repoName}.zip`, zipData);
+    //
+    // } catch (e) {
+    //     console.log('error: failed creating zips', socket)
+    // }
+
+
+
 
     console.log('uploading files to preview server...', socket);
     try {
@@ -243,9 +318,16 @@ const generateAds = async (options, socket) => {
         console.log(`preview url here:<br>${toHref(`${previewUrl}/index.html`)}`, socket)
         console.log(`download deliverables here:<br>${toHref(previewUrl+'/'+repoName+'.zip')}`, socket)
 
+        socketMsg.forEach(ad => {
+            ad.preview = toHref(previewUrl + "/" + ad.outputName + "/index.html", "Done");
+            ad.zip = toHref(previewUrl + "/" + ad.outputName + ".zip", "Done");
+        })
+
     } catch (e) {
         console.log('error: failed upload', socket)
     }
+
+    socket.emit('ads built', { data: socketMsg});
 
     return "finalized"
 }

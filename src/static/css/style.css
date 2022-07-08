@@ -1,0 +1,90 @@
+body {
+  margin: 0;
+  font-family: 'Roboto', sans-serif;
+  background-color: #000;
+  color: #fff
+}
+
+.main {
+  position: absolute;
+  width: 800px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  background-color: #000;
+  height: 100%
+}
+
+.title {
+  font-family: 'Roboto', sans-serif;
+  font-size: 40px;
+  font-weight: 900;
+  padding-top: 50px;
+
+}
+
+.title sup {
+  font-size: 15px;
+  color: blue;
+  font-weight: 400;
+}
+
+.helpTxt {
+  padding-top: 20px;
+}
+
+.form {
+  padding-top: 20px;
+}
+
+#messages {
+  list-style-type: none;
+  font-size: 10px;
+  text-align: left;
+  margin: 0;
+  padding: 0;
+  padding-top: 10px;
+  /*display: none;*/
+}
+
+#messages a {
+  color: #fff;
+}
+
+#messages > li {
+  padding: 0.5rem 1rem;
+}
+
+#messages > li:nth-child(odd) {
+  background: #191919;
+}
+
+.footer {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  font-size: 8px;
+  text-align: right;
+}
+
+td, tr, table {
+  text-align: center;
+}
+
+.formTable {
+  width: 50%;
+  margin: 0 auto;
+}
+
+.adsTable {
+  width: 50%;
+  margin: 0 auto;
+
+  font-size: 10px;
+  padding-top: 20px;
+}
+
+#configList {
+  width: 100%;
+  margin: 0 auto;
+}

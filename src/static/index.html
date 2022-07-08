@@ -7,106 +7,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;900&display=swap" rel="stylesheet">
     <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
-
-    <style>
-        body {
-            margin: 0;
-            font-family: 'Roboto', sans-serif;
-            background-color: #000;
-            color: #fff
-        }
-
-        .main {
-            position: absolute;
-            width: 800px;
-            left: 50%;
-            transform: translateX(-50%);
-            text-align: center;
-            background-color: #000;
-            height: 100%
-        }
-
-        .title {
-            font-family: 'Roboto', sans-serif;
-            font-size: 40px;
-            font-weight: 900;
-            padding-top: 50px;
-
-        }
-
-        .title sup {
-            font-size: 15px;
-            color: blue;
-            font-weight: 400;
-        }
-
-        .helpTxt {
-            padding-top: 20px;
-        }
-
-        .form {
-            padding-top: 20px;
-        }
-
-        #messages {
-            list-style-type: none;
-            font-size: 10px;
-            text-align: left;
-            margin: 0;
-            padding: 0;
-            padding-top: 10px;
-            /*display: none;*/
-        }
-
-        #messages a {
-            color: #fff;
-        }
-
-        #messages > li {
-            padding: 0.5rem 1rem;
-        }
-
-        #messages > li:nth-child(odd) {
-            background: #191919;
-        }
-
-        .footer {
-            position: absolute;
-            bottom: 5px;
-            right: 5px;
-            font-size: 8px;
-            text-align: right;
-        }
-
-        td, tr, table {
-            text-align: center;
-        }
-
-        .formTable {
-            width: 50%;
-            margin: 0 auto;
-        }
-
-        .configList {
-            width: 100%;
-            margin: 0 auto;
-        }
-
-        .configList option {
-
-        }
-    </style>
 </head>
 <body>
 
-    <div class="main">
-        <div class="title"> display ads generator <sup class="beta">beta</sup> </div>
-        <div class="helpTxt">
-            Select a template and feed, and then hit 'generate preview & zips'
-        </div>
+<div class="main">
+    <div class="title"> display ads generator <sup class="beta">beta</sup></div>
+    <div class="helpTxt">
+        Select a template and feed, and then hit 'generate preview & zips'
+    </div>
 
+    <div id="card1" class="cards">
         <form class='form' id="form" action="">
             <table class="formTable">
                 <tr>
@@ -114,7 +27,7 @@
                         Template:
                     </td>
                     <td>
-                        <input id="input_template" placeholder="link to repository">
+                        <input id="input_template" type="text" placeholder="link to repository" >
                     </td>
                 </tr>
 
@@ -123,7 +36,7 @@
                         Repo auth (optional):
                     </td>
                     <td>
-                        <input id="input_username" placeholder="username"><br>
+                        <input id="input_username" type="text" placeholder="username"><br>
                         <input id="input_password" type="password" placeholder="password">
                     </td>
                 </tr>
@@ -133,7 +46,7 @@
                         Branch (optional):
                     </td>
                     <td>
-                        <input id="input_branch" placeholder="main, master, develop...">
+                        <input id="input_branch" type="text" placeholder="main, master, develop...">
                     </td>
                 </tr>
 
@@ -149,18 +62,22 @@
 
                 <tr>
                     <td colspan="2">
-                        <button type="button" class="getTemplateBtn">grab template</button>
+                        <button type="button" id="getTemplateBtn">grab template</button>
                     </td>
                 </tr>
+            </table>
+        </form>
+    </div>
 
+    <div id="card2" class="cards">
 
-
+        <form class='form2' id="form2" action="">
+            <table class="formTable">
                 <tr>
                     <td colspan="2">
-                        <label for="config_list">choose which ads to generate:</label>
+                        <label for="configList">choose which ads to generate:</label>
                         <br>
-
-                        <select class="configList" name="config_list" id="config_list" multiple></select>
+                        <select id="configList" name="config_list" multiple></select>
                     </td>
                 </tr>
 
@@ -171,7 +88,8 @@
                 </tr>
                 <tr>
                     <td colspan="2">
-                        <input type="checkbox" id="optimize_images" name="optimize_images" value="optimize_images" checked>
+                        <input type="checkbox" id="optimize_images" name="optimize_images" value="optimize_images"
+                               checked>
                         <label for="optimize_images">optimize_images</label>
                         <input type="checkbox" id="optimize_fonts" name="optimize_fonts" value="optimize_fonts" checked>
                         <label for="optimize_fonts">optimize_fonts</label>
@@ -190,105 +108,36 @@
 
                 <tr>
                     <td colspan="2">
-                        <button type="submit">generate preview & zips</button>
+                        <button type="button" id="generateZips">generate preview & zips</button>
                     </td>
                 </tr>
+
             </table>
         </form>
-        <ul id="messages">
-
-        </ul>
     </div>
 
+    <div id="card3" class="cards">
+        <table id="ads" class="adsTable">
+            <thead>
+                <tr>
+                    <th>Config Name</th>
+                    <th>Output Name</th>
+                    <th>HTML</th>
+                    <th>Preview</th>
+                    <th>Zip</th>
+                    <th>Video</th>
+                    <th>Animated GIF</th>
+                    <th>Backup JPG</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <ul id="messages"></ul>
+
+</div>
 <script src="/socket.io/socket.io.js"></script>
-<script>
-    var socket = io();
-    var messages = document.getElementById('messages');
-
-    function getSelectValues(select) {
-        var result = [];
-        var options = select && select.options;
-        var opt;
-
-        for (var i=0, iLen=options.length; i<iLen; i++) {
-            opt = options[i];
-
-            if (opt.selected) {
-                result.push(opt.value || opt.text);
-            }
-        }
-        return result;
-    }
-
-    document.querySelector('.getTemplateBtn').addEventListener('click', function(e) {
-        socket.emit('grabTemplate', {
-            input_template: document.getElementById('input_template').value,
-
-            input_username: document.getElementById('input_username').value,
-            input_password: document.getElementById('input_password').value,
-
-            input_branch: document.getElementById('input_branch').value,
-            input_feed: document.getElementById('input_feed').value
-        });
-    });
-
-    document.getElementById('form').addEventListener('submit', function(e) {
-        var selectEl = document.getElementById('config_list');
-
-        var selectedAdsArray = getSelectValues(selectEl);
-
-        console.log(selectedAdsArray)
-
-        socket.emit('generateAds', {
-            input_feed: document.getElementById('input_feed').value,
-            selectedAds: selectedAdsArray,
-
-            preserve_filenames: document.getElementById('preserve_filenames').checked,
-
-            optimizations: {
-                html: document.getElementById('minify_html').checked,
-                css: document.getElementById('minify_css').checked,
-                js: document.getElementById('minify_javascript').checked,
-                image: document.getElementById('optimize_images').checked,
-                fonts: document.getElementById('optimize_fonts').checked
-            },
-        });
-
-
-        e.preventDefault();
-
-    });
-
-
-
-    socket.on('update message', function(msg) {
-        var item = document.createElement('li');
-        item.innerHTML = msg.data;
-        messages.appendChild(item);
-        //messages.insertBefore(item, messages.firstChild);
-
-        window.scrollTo(0, document.body.scrollHeight);
-        console.log(msg.data)
-    });
-
-    socket.on('list ads', function(msg) {
-        var select = document.getElementById('config_list');
-
-        while (select.options.length > 0) {
-            select.remove(0);
-        }
-
-        for (var i = 0; i < msg.data.length; i++){
-            var opt = document.createElement('option');
-            opt.value = msg.data[i].location;
-            opt.innerHTML = msg.data[i].baseName;
-            select.appendChild(opt);
-        }
-
-        var selectSize = msg.data.length < 20 ? msg.data.length : 20;
-        select.setAttribute("size", selectSize);
-    });
-
-</script>
+<script src="js/main.js"></script>
 </body>
 </html>
